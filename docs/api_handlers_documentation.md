@@ -69,7 +69,10 @@ call_claude_sonnet(prompt, api_key)
 call_claude_haiku(prompt, api_key)
 ```
 
-Makes calls to Anthropic's Claude models and extracts binary (0/1) responses.
+Makes calls to Anthropic's Claude models and extracts binary (0/1) responses. The implementations use these specific model versions:
+- Claude Opus: `claude-3-opus-20240229`
+- Claude Sonnet: `claude-3-5-sonnet-20241022`
+- Claude Haiku: `claude-3-5-haiku-20241022`
 
 **Parameters:**
 - `prompt`: Full text prompt to send to the model
@@ -111,6 +114,17 @@ Estimates the cost of API calls based on prompt length and model pricing.
 **Returns:**
 - Estimated cost in USD
 
+## Model Cost Comparison
+
+| Model          | Input Cost (per 1M tokens) | Output Cost (per 1M tokens) |
+|----------------|----------------------------|----------------------------|
+| GPT-4o         | $2.50                      | $10.00                     |
+| GPT-4o-mini    | $0.15                      | $0.60                      |
+| Claude Opus    | $1.50                      | $7.50                      |
+| Claude Sonnet  | $0.80                      | $4.00                      |
+| Claude Haiku   | $0.25                      | $1.25                      |
+| Deepseek Chat  | $0.27                      | $1.10                      |
+
 ## Implementation Details
 
 ### Request Format
@@ -142,12 +156,31 @@ All functions extract a binary (0/1) response from the model's text output:
 - Uses regex pattern matching to find the first 0 or 1 in the response
 - Returns NULL/None if no valid response found
 
+## Testing
+
+The framework includes test scripts for both Python and R implementations:
+
+### Python Test
+```bash
+# Run from project root
+python python/tests/test_api_handlers.py
+```
+
+### R Test
+```bash
+# Run from project root 
+Rscript r/tests/test_api_handlers.R
+# To test API calls, add the --test-api flag
+Rscript r/tests/test_api_handlers.R --test-api
+```
+
 ## Usage Examples
 
 ### R Example
 
 ```r
-source("api_handlers.R")
+# Load the API handlers
+source("r/src/api_handlers_r.R")
 
 # Set API keys
 api_keys <- list(
@@ -157,10 +190,10 @@ api_keys <- list(
 
 # Clean text
 text <- "Product description with irregular spacing."
-clean_text <- clean_text(text)
+cleaned_text <- clean_text(text)
 
 # Call different models
-prompt <- paste("Classify if this product benefits society. Answer 0 or 1:", clean_text)
+prompt <- paste("Classify if this product benefits society. Answer 0 or 1:", cleaned_text)
 
 # OpenAI models
 gpt4o_result <- call_gpt4o(prompt, api_keys$openai)
@@ -179,7 +212,12 @@ claude_opus_cost <- calculate_api_cost(prompt, "claude_opus")
 ### Python Example
 
 ```python
-from api_handlers import clean_text, call_gpt4o, call_claude_sonnet, calculate_api_cost
+# Import the API handlers
+from python.src.api_handlers_python import (
+    clean_text, call_gpt4o, call_gpt4o_mini, 
+    call_claude_opus, call_claude_sonnet, call_claude_haiku,
+    calculate_api_cost
+)
 
 # Set API keys
 api_keys = {
@@ -188,11 +226,11 @@ api_keys = {
 }
 
 # Clean text
-text = "Product description with irregular spacing."
-clean_text = clean_text(text)
+original_text = "Product description with irregular spacing."
+cleaned_text = clean_text(original_text)
 
 # Call different models
-prompt = f"Classify if this product benefits society. Answer 0 or 1: {clean_text}"
+prompt = f"Classify if this product benefits society. Answer 0 or 1: {cleaned_text}"
 
 # OpenAI models
 gpt4o_result = call_gpt4o(prompt, api_keys["openai"])
@@ -216,3 +254,12 @@ claude_opus_cost = calculate_api_cost(prompt, "claude_opus")
 4. **Prompt Construction**: Construct prompts carefully to ensure proper binary responses
 5. **API Keys**: Store API keys securely, never hardcode them in scripts
 6. **Model Selection**: Choose models based on tradeoffs between accuracy, speed, and cost
+
+## API Versions
+
+This implementation is compatible with:
+- OpenAI API v1 (as of March 2025)
+- Anthropic API 2023-06-01
+- Deepseek API (as of March 2025)
+
+API specifications may change over time, so check the respective provider documentation for updates.
