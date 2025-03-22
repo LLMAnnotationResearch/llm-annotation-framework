@@ -1,0 +1,35 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# R files
+.Rhistory
+.RData
+.Rproj.user/
+
+# API keys and sensitive information
+*api_keys*
+.env
+*.env
+credentials.json
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Temporary files
+tmp/
+temp/
