@@ -1,0 +1,4 @@
+prompt_id,strategy,accuracy,reg_coef,reg_se,p_value,converged,n_valid,n_total,cost
+1,zero_shot,0.5,,,,False,10,10,0.0016455374999999998
+2,zero_shot,0.5,,,,False,10,10,0.0016312874999999999
+3,zero_shot,0.5,,,,False,10,10,0.0016316625
