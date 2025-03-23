@@ -311,3 +311,75 @@ plt.tight_layout()
 plt.savefig("results/coefficient_plot.png")
 ```
 
+## Flexible Regression Analysis
+
+The framework supports flexible regression analysis, allowing you to specify:
+
+1. A custom regression formula (e.g., `y ~ x1 + x2 + x3`)
+2. The specific coefficient of interest to extract from the results
+3. The type of regression (Gaussian/OLS or Binomial/Logistic)
+
+This enables various research designs where LLM annotations might be:
+- Independent variables in your model
+- Dependent variables being predicted
+- Control variables in a larger model
+
+### Python Example:
+
+```python
+# When LLM annotation is the independent variable of interest
+results = evaluate_model(
+    data=data,
+    model_name="gpt4o",
+    api_key=api_keys["openai"],
+    prompt_template=prompt_template,
+    regression_formula="outcome ~ LLM_LABEL + control1 + control2",
+    coefficient_of_interest="LLM_LABEL"  # Default
+)
+
+# When LLM annotation is the dependent variable
+results = evaluate_model(
+    data=data,
+    model_name="gpt4o",
+    api_key=api_keys["openai"],
+    prompt_template=prompt_template,
+    regression_formula="LLM_LABEL ~ predictor1 + predictor2",
+    coefficient_of_interest="predictor1"  # We're interested in this predictor
+)
+
+# When interested in interaction effects
+results = evaluate_model(
+    data=data,
+    model_name="gpt4o",
+    api_key=api_keys["openai"],
+    prompt_template=prompt_template,
+    regression_formula="outcome ~ LLM_LABEL * treatment + control",
+    coefficient_of_interest="LLM_LABEL:treatment"  # Interaction term
+)
+```
+
+### R Example:
+
+```r
+# When LLM annotation is the independent variable of interest
+results <- evaluate_model(
+    data = data,
+    model_name = "claude_opus",
+    api_key = api_keys$anthropic,
+    prompt_template = prompt_template,
+    regression_formula = "outcome ~ LLM_LABEL + control1 + control2",
+    coefficient_of_interest = "LLM_LABEL"  # Default
+)
+
+# When LLM annotation is the dependent variable
+results <- evaluate_model(
+    data = data,
+    model_name = "claude_opus",
+    api_key = api_keys$anthropic,
+    prompt_template = prompt_template,
+    regression_formula = "LLM_LABEL ~ predictor1 + predictor2",
+    coefficient_of_interest = "predictor1"  # We're interested in this predictor
+)
+```
+
+The framework will automatically extract and report the coefficient, standard error, and p-value for your specified coefficient of interest.

@@ -27,6 +27,7 @@ def evaluate_model(
     text_column: str = "text",
     human_label_column: str = "HUMAN",
     regression_formula: Optional[str] = None,
+    coefficient_of_interest: Optional[str] = "LLM_LABEL",
     regression_family: str = "gaussian",
     max_retries: int = 3,
     retry_delay: int = 5,
@@ -190,17 +191,18 @@ def evaluate_model(
                 
                 results = model.fit()
                 
-                # Extract coefficient for LLM_LABEL if it exists in the model
-                if "LLM_LABEL" in results.params.index:
+                # Extract coefficient for the variable of interest if it exists in the model
+                if coefficient_of_interest in results.params.index:
                     reg_results = {
-                        'coefficient': results.params["LLM_LABEL"],
-                        'std_error': results.bse["LLM_LABEL"],
-                        'p_value': results.pvalues["LLM_LABEL"],
+                        'coefficient': results.params[coefficient_of_interest],
+                        'std_error': results.bse[coefficient_of_interest],
+                        'p_value': results.pvalues[coefficient_of_interest],
                         'converged': results.mle_retvals['converged'] if hasattr(results, 'mle_retvals') else True,
                         'full_results': results.summary().as_text() if verbose else None
                     }
                 else:
-                    print("Warning: LLM_LABEL not found in regression results")
+                    print(f"Warning: {coefficient_of_interest} not found in regression results")
+                    print(f"Available coefficients: {', '.join(results.params.index)}")
             except Exception as e:
                 print(f"Regression error: {e}")
                 if verbose:
@@ -225,6 +227,7 @@ def run_sensitivity_analysis(
     text_column: str = "text",
     human_label_column: str = "HUMAN",
     regression_formula: Optional[str] = None,
+    coefficient_of_interest: Optional[str] = "LLM_LABEL",
     regression_family: str = "gaussian",
     save_path: str = "./",
     figure_name: Optional[str] = None
@@ -286,6 +289,7 @@ def run_sensitivity_analysis(
             text_column=text_column,
             human_label_column=human_label_column,
             regression_formula=regression_formula,
+            coefficient_of_interest=coefficient_of_interest,
             regression_family=regression_family
         )
         

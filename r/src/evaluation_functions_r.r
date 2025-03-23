@@ -30,6 +30,7 @@ source("r/src/api_handlers_r.R")
 #'   - regression: List of regression results (if applicable)
 #'   - n_valid: Number of valid predictions
 #'   - n_total: Total number of examples
+#' @param coefficient_of_interest Name of the coefficient to extract from regression results
 #'
 #' @export
 evaluate_model <- function(data, 
@@ -39,6 +40,7 @@ evaluate_model <- function(data,
                            text_column = "text",
                            human_label_column = "HUMAN",
                            regression_formula = NULL,
+                           coefficient_of_interest = "LLM_LABEL",
                            regression_family = "gaussian",
                            max_retries = 3,
                            retry_delay = 5,
@@ -177,20 +179,24 @@ evaluate_model <- function(data,
       # Extract results if the model converged
       converged <- !is.null(reg_model$converged) || is.null(reg_model$converged)  # lm doesn't have converged attribute
       
-      # Check if LLM_LABEL is in the model summary
+      # Check if coefficient_of_interest is in the model summary
       model_summary <- summary(reg_model)
       coef_matrix <- coef(model_summary)
       
-      if ("LLM_LABEL" %in% rownames(coef_matrix)) {
+      if (coefficient_of_interest %in% rownames(coef_matrix)) {
         reg_results <- list(
-          coefficient = coef_matrix["LLM_LABEL", "Estimate"],
-          std_error = coef_matrix["LLM_LABEL", "Std. Error"],
-          p_value = coef_matrix["LLM_LABEL", ifelse(regression_family == "binomial", "Pr(>|z|)", "Pr(>|t|)")],
+          coefficient = coef_matrix[coefficient_of_interest, "Estimate"],
+          std_error = coef_matrix[coefficient_of_interest, "Std. Error"],
+          p_value = coef_matrix[coefficient_of_interest, ifelse(regression_family == "binomial", "Pr(>|z|)", "Pr(>|t|)")],
           converged = converged,
           full_results = if (verbose) capture.output(print(model_summary)) else NULL
         )
       } else {
-        warning("LLM_LABEL not found in regression results")
+        warning(paste(coefficient_of_interest, "not found in regression results"))
+        if (verbose) {
+          available_coeffs <- rownames(coef_matrix)
+          cat(paste("Available coefficients:", paste(available_coeffs, collapse = ", "), "\n"))
+        }
       }
     }, error = function(e) {
       warning(paste("Regression error:", e$message))
@@ -227,6 +233,7 @@ evaluate_model <- function(data,
 #' @return A list containing:
 #'   - results: Dataframe with results for each prompt
 #'   - plot: ggplot object
+#' @param coefficient_of_interest Name of the coefficient to extract from regression results
 #'
 #' @export
 run_sensitivity_analysis <- function(prompts_df,
@@ -236,6 +243,7 @@ run_sensitivity_analysis <- function(prompts_df,
                                     text_column = "text",
                                     human_label_column = "HUMAN",
                                     regression_formula = NULL,
+                                    coefficient_of_interest = "LLM_LABEL",
                                     regression_family = "gaussian",
                                     save_path = "./",
                                     figure_name = NULL) {
@@ -278,6 +286,7 @@ run_sensitivity_analysis <- function(prompts_df,
       text_column = text_column,
       human_label_column = human_label_column,
       regression_formula = regression_formula,
+      coefficient_of_interest = coefficient_of_interest,
       regression_family = regression_family
     )
     
