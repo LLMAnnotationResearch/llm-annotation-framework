@@ -1,0 +1,109 @@
+Task: Generate [number] unique prompts for evaluating [clearly defined task, e.g., whether texts satisfy specific criteria or conditions].
+
+Use these prompting strategies evenly:
+
+zero_shot: Direct evaluation with no additional context
+
+few_shot: Include 2-3 clear examples with classifications and reasons
+
+cot: Chain-of-thought with explicit analytical steps
+
+role_based: Evaluation from specific expert perspective
+
+self_consistency: Multiple passes with majority voting
+
+tot: Tree of thought with multiple analysis paths
+
+rot: Reasoning with competing arguments
+
+Requirements for ALL prompts:
+
+Must explicitly state the evaluation task clearly: "Evaluate whether [clearly state the evaluation criteria for classification]."
+
+Must end with: "Answer only with a number (0 or 1). Here is the text:"
+
+Must output strictly binary classification (0/1).
+
+Must maintain consistent structure within each strategy.
+
+Must be unique and not repeat previously generated prompts.
+
+Strategy-specific guidelines:
+
+ZERO_SHOT:
+
+Direct question.
+
+No additional context.
+
+Example: "Please read the following text and evaluate whether [explicit evaluation criteria]. Answer only with a number (0 or 1). Here is the text:"
+
+FEW_SHOT:
+
+Include exactly 3 examples.
+
+Each example must clearly state: [description/example], classification (0/1), and explicit reason.
+
+Follow format: "'[EXAMPLE]' = [0/1] ([REASON])"
+
+Example: "Evaluate whether [explicit evaluation criteria]. Examples: 1) '[Example 1]' = 1 ([Reason]), 2) '[Example 2]' = 0 ([Reason]), 3) '[Example 3]' = 1 ([Reason]). Using these examples, classify the following text. Answer only with a number (0 or 1). Here is the text:"
+
+COT (CHAIN-OF-THOUGHT):
+
+List 4-5 explicit analytical steps.
+
+Steps progress logically toward classification.
+
+Number steps explicitly.
+
+Example: "Evaluate whether [explicit evaluation criteria] by following these steps: 1) Identify main [element/aspect], 2) Determine [criteria step 2], 3) Analyze [criteria step 3], 4) Assess [criteria step 4], and 5) Conclude with classification (1=yes, 0=no). Answer only with a number (0 or 1). Here is the text:"
+
+ROLE_BASED:
+
+Begin with "As a [EXPERT ROLE],"
+
+Clearly specify relevant expertise.
+
+Link expertise directly to evaluation task.
+
+Example: "As a [expert role relevant to task], evaluate whether [explicit evaluation criteria]. Based on your professional expertise, classify with 1 (yes) or 0 (no). Answer only with a number (0 or 1). Here is the text:"
+
+SELF_CONSISTENCY:
+
+Clearly specify exactly 3 evaluation passes.
+
+Each pass with distinct analytical focus.
+
+Mention explicitly a majority-based final classification.
+
+Example: "Evaluate whether [explicit evaluation criteria] three times: first considering [aspect 1], second [aspect 2], and third [aspect 3]. Provide classification (1 or 0) for each pass, then conclude with the majority decision. Answer only with a number (0 or 1). Here is the text:"
+
+TOT (TREE OF THOUGHT):
+
+Start with clear task statement.
+
+Specify exactly 3 distinct analytical paths.
+
+Each path with clear analytical focus.
+
+Mention the requirement to synthesize results.
+
+Example: "Evaluate whether [explicit evaluation criteria] by analyzing through three distinct paths: 1) [Path 1], 2) [Path 2], and 3) [Path 3]. Synthesize the insights to conclude with final classification (1=yes, 0=no). Answer only with a number (0 or 1). Here is the text:"
+
+ROT (REASONING WITH COMPETING ARGUMENTS):
+
+Start with clear task statement.
+
+Provide bidirectional analysis (pro/con).
+
+Require explicit evaluation of argument strength.
+
+Include confidence rating explicitly.
+
+Example: "Evaluate whether [explicit evaluation criteria] by exploring competing arguments: for classification as 1 (yes), list two supporting reasons; for classification as 0 (no), list two supporting reasons. Assess argument strength and confidence (high/medium/low). Provide a final classification based on the strongest reasoning chain. Answer only with a number (0 or 1). Here is the text:"
+
+Output Format:
+Generate a CSV with exactly two columns:
+strategy,prompt
+
+Ensure even distribution across all strategies for the total number of prompts requested.
