@@ -265,8 +265,6 @@ sensitivity_results = run_sensitivity_analysis(
 
 ## Example: Analyzing Crowdfunding Success
 
-This example demonstrates a complete workflow for using LLM annotations to analyze factors affecting crowdfunding success.
-
 ```python
 import pandas as pd
 import matplotlib.pyplot as plt
