@@ -286,31 +286,6 @@ print(summary[['strategy', 'accuracy', 'reg_coef', 'p_value']].head())
 mean_coef = summary['reg_coef'].mean()
 sd_coef = summary['reg_coef'].std()
 print(f"\nMean coefficient: {mean_coef:.4f} (SD: {sd_coef:.4f})")
-
-# Step 5: Create a visualization of how prompt variations affect results
-plt.figure(figsize=(10, 6))
-plt.errorbar(
-    x=range(len(summary)),
-    y=summary['reg_coef'],
-    yerr=summary['reg_se'],
-    fmt='o',
-    capsize=5
-)
-plt.axhline(y=0, color='r', linestyle='--')
-plt.axhline(y=mean_coef, color='blue', linestyle='-', alpha=0.5)
-plt.fill_between(
-    range(-1, len(summary)+1),
-    mean_coef - sd_coef,
-    mean_coef + sd_coef,
-    color='blue',
-    alpha=0.1
-)
-plt.xticks(range(len(summary)), summary['strategy'], rotation=45, ha='right')
-plt.ylabel('Coefficient')
-plt.xlabel('Prompt Strategy')
-plt.title('Effect of Societal Benefit on Crowdfunding Success')
-plt.tight_layout()
-plt.savefig("results/coefficient_plot.png")
 ```
 
 ## Flexible Regression Analysis
