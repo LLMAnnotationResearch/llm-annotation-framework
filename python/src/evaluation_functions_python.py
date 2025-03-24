@@ -230,7 +230,9 @@ def run_sensitivity_analysis(
     coefficient_of_interest: Optional[str] = "LLM_LABEL",
     regression_family: str = "gaussian",
     save_path: str = "./",
-    figure_name: Optional[str] = None
+    figure_name: Optional[str] = None,
+    bootstrap_size: int = None,
+    random_seed: int = 42
 ) -> Dict[str, Any]:
     """
     Run a sensitivity analysis across multiple prompt variations.
@@ -257,6 +259,11 @@ def run_sensitivity_analysis(
         Path to save intermediate results and plots
     figure_name : str, optional
         Name for the output figure (defaults to model_name)
+    bootstrap_size : int, optional
+        Size of each bootstrap sample. If provided, a different random sample of this size
+        will be used for each prompt instead of the full dataset.
+    random_seed : int
+        Seed for random number generation to ensure reproducibility
     
     Returns:
     --------
@@ -273,16 +280,34 @@ def run_sensitivity_analysis(
     # Initialize results dataframe
     results_df = pd.DataFrame(columns=[
         'prompt_id', 'strategy', 'accuracy', 'reg_coef', 'reg_se', 'p_value',
-        'converged', 'n_valid', 'n_total', 'cost'
+        'converged', 'n_valid', 'n_total', 'cost', 'bootstrapped'
     ])
+    
+    # Set up bootstrapping
+    np.random.seed(random_seed)
+    is_bootstrapping = bootstrap_size is not None
+    
+    if is_bootstrapping:
+        bootstrap_size = min(bootstrap_size, len(data))
+        print(f"Using bootstrapping with sample size {bootstrap_size}")
     
     # For each prompt variation
     for i, row in enumerate(prompts_df.itertuples(), 1):
         print(f"\nProcessing prompt {i}/{len(prompts_df)} ({row.strategy})...")
         
+        # Determine which data to use for this prompt
+        if is_bootstrapping:
+            # Sample data with replacement for this prompt
+            bootstrap_indices = np.random.choice(len(data), size=bootstrap_size, replace=True)
+            prompt_data = data.iloc[bootstrap_indices].copy().reset_index(drop=True)
+            print(f"  Using bootstrapped sample with {bootstrap_size} observations")
+        else:
+            # Use full dataset
+            prompt_data = data.copy()
+        
         # Run evaluation
         results = evaluate_model(
-            data,
+            prompt_data,
             model_name,
             api_key,
             row.prompt,
@@ -304,7 +329,8 @@ def run_sensitivity_analysis(
             'converged': results['regression']['converged'],
             'n_valid': results['n_valid'],
             'n_total': results['n_total'],
-            'cost': results['cost']
+            'cost': results['cost'],
+            'bootstrapped': is_bootstrapping
         }
         results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
         
@@ -334,8 +360,13 @@ def run_sensitivity_analysis(
         plt.axvline(mean_coef + sd_coef, color='darkred', linestyle='dotted', linewidth=1.5,
                    label=f'+1 SD: {(mean_coef + sd_coef):.2f}')
         
+        # Add bootstrap information to title if used
+        bootstrap_info = ""
+        if is_bootstrapping:
+            bootstrap_info = f" (with bootstrap samples of size {bootstrap_size})"
+        
         # Labels and title
-        plt.title(f"Distribution of Regression Coefficients ({model_name})")
+        plt.title(f"Distribution of Regression Coefficients ({model_name}){bootstrap_info}")
         plt.xlabel("Coefficient Value")
         plt.ylabel("Count")
         plt.legend()
@@ -346,6 +377,43 @@ def run_sensitivity_analysis(
         plt.close()
         
         print(f"Plot saved to {plot_path}")
+        
+        # Create additional visualization for strategy comparison if multiple strategies
+        if len(plot_df['strategy'].unique()) > 1:
+            plt.figure(figsize=(12, 8))
+            
+            # Create barplot of coefficients by strategy
+            strategy_order = plot_df.groupby('strategy')['reg_coef'].mean().sort_values().index
+            sns.barplot(x='strategy', y='reg_coef', data=plot_df, order=strategy_order)
+            
+            # Add error bars
+            if len(plot_df) > 5:  # Only add error bars if we have enough data points
+                strategy_stats = plot_df.groupby('strategy')['reg_coef'].agg(['mean', 'std']).reset_index()
+                strategies = strategy_stats['strategy']
+                means = strategy_stats['mean']
+                stds = strategy_stats['std']
+                
+                plt.errorbar(
+                    x=range(len(strategies)),
+                    y=means,
+                    yerr=stds,
+                    fmt='none',
+                    color='black',
+                    capsize=5
+                )
+            
+            plt.title(f"Regression Coefficients by Prompt Strategy{bootstrap_info}")
+            plt.xlabel("Prompt Strategy")
+            plt.ylabel("Coefficient Value")
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            
+            # Save strategy comparison plot
+            strategy_plot_path = os.path.join(save_path, f"{figure_name}_by_strategy.png")
+            plt.savefig(strategy_plot_path)
+            plt.close()
+            
+            print(f"Strategy comparison plot saved to {strategy_plot_path}")
     else:
         print("Warning: No converged models to plot")
         plot_path = None

@@ -226,14 +226,17 @@ evaluate_model <- function(data,
 #' @param text_column Name of the column containing the text to classify
 #' @param human_label_column Name of the column containing the ground truth labels
 #' @param regression_formula Formula for regression
+#' @param coefficient_of_interest Name of the coefficient to extract from regression results
 #' @param regression_family Family for GLM regression
 #' @param save_path Path to save intermediate results and plots
 #' @param figure_name Name for the output figure (defaults to model_name)
+#' @param bootstrap_size Size of each bootstrap sample. If provided, a different random sample of this size
+#'        will be used for each prompt instead of the full dataset.
+#' @param random_seed Seed for random number generation to ensure reproducibility
 #'
 #' @return A list containing:
 #'   - results: Dataframe with results for each prompt
 #'   - plot: ggplot object
-#' @param coefficient_of_interest Name of the coefficient to extract from regression results
 #'
 #' @export
 run_sensitivity_analysis <- function(prompts_df,
@@ -246,7 +249,9 @@ run_sensitivity_analysis <- function(prompts_df,
                                     coefficient_of_interest = "LLM_LABEL",
                                     regression_family = "gaussian",
                                     save_path = "./",
-                                    figure_name = NULL) {
+                                    figure_name = NULL,
+                                    bootstrap_size = NULL,
+                                    random_seed = 42) {
   
   if (is.null(figure_name)) {
     figure_name <- paste0("coefficient_distribution_", model_name)
@@ -269,17 +274,38 @@ run_sensitivity_analysis <- function(prompts_df,
     n_valid = numeric(),
     n_total = numeric(),
     cost = numeric(),
+    bootstrapped = logical(),
     stringsAsFactors = FALSE
   )
+  
+  # Set up bootstrapping
+  set.seed(random_seed)
+  is_bootstrapping <- !is.null(bootstrap_size)
+  
+  if (is_bootstrapping) {
+    bootstrap_size <- min(bootstrap_size, nrow(data))
+    cat(sprintf("Using bootstrapping with sample size %d\n", bootstrap_size))
+  }
   
   # For each prompt variation
   for (i in 1:nrow(prompts_df)) {
     cat(sprintf("\nProcessing prompt %d/%d (%s)...\n", 
                 i, nrow(prompts_df), prompts_df$strategy[i]))
     
+    # Determine which data to use for this prompt
+    if (is_bootstrapping) {
+      # Sample data with replacement for this prompt
+      bootstrap_indices <- sample(nrow(data), size = bootstrap_size, replace = TRUE)
+      prompt_data <- data[bootstrap_indices, ]
+      cat(sprintf("  Using bootstrapped sample with %d observations\n", bootstrap_size))
+    } else {
+      # Use full dataset
+      prompt_data <- data
+    }
+    
     # Run evaluation
     results <- evaluate_model(
-      data,
+      prompt_data,
       model_name,
       api_key,
       prompts_df$prompt[i],
@@ -301,7 +327,8 @@ run_sensitivity_analysis <- function(prompts_df,
       converged = results$regression$converged,
       n_valid = results$n_valid,
       n_total = results$n_total,
-      cost = results$cost
+      cost = results$cost,
+      bootstrapped = is_bootstrapping
     ))
     
     # Save intermediate results
@@ -320,6 +347,12 @@ run_sensitivity_analysis <- function(prompts_df,
     mean_coef <- mean(plot_df$reg_coef, na.rm = TRUE)
     sd_coef <- sd(plot_df$reg_coef, na.rm = TRUE)
     
+    # Add bootstrap information to title if used
+    bootstrap_info <- ""
+    if (is_bootstrapping) {
+      bootstrap_info <- sprintf(" (with bootstrap samples of size %d)", bootstrap_size)
+    }
+    
     # Create plot
     p <- ggplot(plot_df, aes(x = reg_coef)) +
       geom_histogram(binwidth = (max(plot_df$reg_coef, na.rm = TRUE) - 
@@ -337,7 +370,7 @@ run_sensitivity_analysis <- function(prompts_df,
               label = "-1 SD", vjust = 2, hjust = 1.2) +
       annotate("text", x = mean_coef + sd_coef, y = Inf, 
               label = "+1 SD", vjust = 2, hjust = -0.2) +
-      labs(title = paste("Distribution of Regression Coefficients (", model_name, ")", sep = ""),
+      labs(title = paste("Distribution of Regression Coefficients (", model_name, ")", bootstrap_info, sep = ""),
            subtitle = sprintf("Mean: %.2f, SD: %.2f", mean_coef, sd_coef),
            x = "Coefficient Value",
            y = "Count") +
@@ -350,6 +383,33 @@ run_sensitivity_analysis <- function(prompts_df,
     ggsave(plot_file, p, width = 8, height = 6)
     
     cat(sprintf("Plot saved to %s\n", plot_file))
+    
+    # Create additional visualization for strategy comparison if multiple strategies
+    if (length(unique(plot_df$strategy)) > 1) {
+      # Calculate mean coefficients by strategy for ordering
+      strategy_order <- plot_df %>%
+        group_by(strategy) %>%
+        summarise(mean_coef = mean(reg_coef, na.rm = TRUE)) %>%
+        arrange(mean_coef) %>%
+        pull(strategy)
+      
+      # Create barplot of coefficients by strategy
+      p_strategy <- ggplot(plot_df, aes(x = factor(strategy, levels = strategy_order), y = reg_coef)) +
+        geom_bar(stat = "summary", fun = "mean", fill = "steelblue", alpha = 0.7) +
+        geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.2) +
+        labs(title = paste("Regression Coefficients by Prompt Strategy", bootstrap_info, sep = ""),
+             x = "Prompt Strategy",
+             y = "Coefficient Value") +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = 0.5),
+              axis.text.x = element_text(angle = 45, hjust = 1))
+      
+      # Save strategy comparison plot
+      strategy_plot_file <- file.path(save_path, paste0(figure_name, "_by_strategy.png"))
+      ggsave(strategy_plot_file, p_strategy, width = 10, height = 7)
+      
+      cat(sprintf("Strategy comparison plot saved to %s\n", strategy_plot_file))
+    }
   } else {
     warning("No converged models to plot")
     p <- NULL
